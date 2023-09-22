@@ -1,0 +1,14 @@
+apiVersion: gauravkr19.dev/v1alpha1
+kind: Database
+metadata:
+  labels:
+    app.kubernetes.io/name: database
+    app.kubernetes.io/instance: database-sample
+    app.kubernetes.io/part-of: db-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: db-operator
+  name: database-sample
+spec:
+  replicas: 1
+  size: 1
+  image: docker.io/gauravkr19/postgres:15-alpine
