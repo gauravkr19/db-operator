@@ -57,6 +57,7 @@ type DatabaseReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -143,6 +144,30 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	secretErr := verifySecrectStatus(ctx, r, targetSecretName, targetSecret, err)
 	if secretErr != nil && errors.IsNotFound(secretErr) {
 		return ctrl.Result{}, secretErr
+	}
+
+	// Create service NodePort
+	servPort := &corev1.Service{}
+	targetServPort, err := r.defineServiceNodePort(db.Name, db.Namespace, deploymentLabels, db)
+
+	// Error creating replicating the NodePort svc - requeue the request.
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	err = r.Get(context.TODO(), types.NamespacedName{Name: targetServPort.Name, Namespace: targetServPort.Namespace}, servPort)
+	if err != nil && errors.IsNotFound(err) {
+		l.Info(fmt.Sprintf("Target service port %s doesn't exist, creating it", targetServPort.Name))
+		err = r.Create(context.TODO(), targetServPort)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		l.Info(fmt.Sprintf("Target service port %s exists, updating it now", targetServPort))
+		err = r.Update(context.TODO(), targetServPort)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Define the Deployment object
@@ -235,6 +260,31 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 // additional functions
+// Create Service NodePort definition
+func (r *DatabaseReconciler) defineServiceNodePort(name string, namespace string, deploymentLabels map[string]string, database *v1alpha1.Database) (*corev1.Service, error) {
+	// Define map for the selector and labels
+
+	var port int32 = 5432
+
+	serv := &corev1.Service{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: deploymentLabels},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeNodePort,
+			Ports: []corev1.ServicePort{{
+				Port: port,
+				Name: "http",
+			}},
+			Selector: deploymentLabels,
+		},
+	}
+
+	// Used to ensure that the service will be deleted when the custom resource object is removed
+	ctrl.SetControllerReference(database, serv, r.Scheme)
+
+	return serv, nil
+}
+
 // Create Secret definition
 //
 //	targetSecret, err := r.defineSecret(targetSecretName, db.Namespace, "POSTGRES_PASSWORD", clientId, db)
