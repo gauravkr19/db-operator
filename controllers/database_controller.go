@@ -23,9 +23,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/gauravkr19/db-operator/api/v1alpha1"
 	gauravkr19devv1alpha1 "github.com/gauravkr19/db-operator/api/v1alpha1"
 
-	// "fmt"
+	"fmt"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	// "reflect"
@@ -55,6 +56,7 @@ type DatabaseReconciler struct {
 
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -125,6 +127,24 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	// Define secret
+	secret := &corev1.Secret{}
+	// Create secret db-connection-secret
+
+	targetSecretName := "dbapp-connection-secret"
+	clientId := "alertsnitch"
+	targetSecret, err := r.defineSecret(targetSecretName, db.Namespace, "POSTGRES_PASSWORD", clientId, db)
+	// Error creating replicating the secret - requeue the request.
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	err = r.Get(context.TODO(), types.NamespacedName{Name: targetSecret.Name, Namespace: targetSecret.Namespace}, secret)
+	secretErr := verifySecrectStatus(ctx, r, targetSecretName, targetSecret, err)
+	if secretErr != nil && errors.IsNotFound(secretErr) {
+		return ctrl.Result{}, secretErr
+	}
+
 	// Define the Deployment object
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -144,11 +164,30 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 					Containers: []corev1.Container{
 						{
 							Name:  "database-container",
-							Image: db.Spec.Image, // Use the image specified in the spec
+							Image: db.Spec.Image,
+							Env: []corev1.EnvVar{{
+								Name: "POSTGRES_PASSWORD",
+								ValueFrom: &corev1.EnvVarSource{
+									SecretKeyRef: &corev1.SecretKeySelector{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "dbapp-connection-secret",
+										},
+										Key: "POSTGRES_PASSWORD",
+									},
+								}},
+								{Name: "POSTGRES_DB",
+									Value: "alertsnitch",
+								},
+								{Name: "POSTGRES_USER",
+									Value: "alertsnitch",
+								},
+								{Name: "PGDATA",
+									Value: "/var/lib/postgresql/data/pgdata",
+								}}, // End of Env listed values and Env definition
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "database-volume",
-									MountPath: "/data",
+									MountPath: "/var/lib/postgresql/data",
 								},
 							},
 						},
@@ -193,6 +232,50 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// }
 
 	return ctrl.Result{}, nil
+}
+
+// additional functions
+// Create Secret definition
+//
+//	targetSecret, err := r.defineSecret(targetSecretName, db.Namespace, "POSTGRES_PASSWORD", clientId, db)
+func (r *DatabaseReconciler) defineSecret(name string, namespace string, key string, value string, database *v1alpha1.Database) (*corev1.Secret, error) {
+	secret := make(map[string]string)
+	secret[key] = value
+
+	sec := &corev1.Secret{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Immutable:  new(bool),
+		Data:       map[string][]byte{},
+		StringData: secret,
+		Type:       "Opaque",
+	}
+
+	// Used to ensure that the secret will be deleted when the custom resource object is removed
+	ctrl.SetControllerReference(database, sec, r.Scheme)
+
+	return sec, nil
+}
+
+// secretErr := verifySecrectStatus(ctx, r, targetSecretName, targetSecret, err)
+func verifySecrectStatus(ctx context.Context, r *DatabaseReconciler, targetSecretName string, targetSecret *corev1.Secret, err error) error {
+	l := log.FromContext(ctx)
+
+	if err != nil && errors.IsNotFound(err) {
+		l.Info(fmt.Sprintf("Target secret %s doesn't exist, creating it", targetSecretName))
+		err = r.Create(context.TODO(), targetSecret)
+		if err != nil {
+			return err
+		}
+	} else {
+		l.Info(fmt.Sprintf("Target secret %s exists, updating it now", targetSecretName))
+		err = r.Update(context.TODO(), targetSecret)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.
