@@ -13,4 +13,8 @@ kind: Kustomization
 images:
 - name: controller
   newName: gauravkr19/db-operator
+<<<<<<< HEAD
   newTag: 0.pvcEx.5
+=======
+  newTag: 0.svc.4
+>>>>>>> 7d7c979cf948eb206811d8d4e3275461479ae9fd

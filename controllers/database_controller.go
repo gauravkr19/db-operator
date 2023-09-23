@@ -34,7 +34,7 @@ import (
 	// "github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	// "k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	// "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -107,8 +107,13 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
+<<<<<<< HEAD
 					corev1.ResourceStorage: *db.Spec.StorageSize,
 					// corev1.ResourceStorage: *resource.Quantity(int64(db.Spec.StorageSize), resource.BinarySI),
+=======
+					// corev1.ResourceStorage: *db.Spec.StorageSize,
+					corev1.ResourceStorage: *resource.NewQuantity(int64(db.Spec.StorageSize), resource.BinarySI),
+>>>>>>> 7d7c979cf948eb206811d8d4e3275461479ae9fd
 				},
 			},
 		},
@@ -129,6 +134,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+<<<<<<< HEAD
 	// Check if the PVC already exists
 	foundPVC = &corev1.PersistentVolumeClaim{}
 	if err := r.Get(ctx, types.NamespacedName{Name: pvc.Name, Namespace: db.Namespace}, foundPVC); err != nil {
@@ -185,6 +191,34 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// 		return ctrl.Result{}, err
 	// 	}
 	// }
+=======
+	// Extend PVC storage size if needed
+	if db.Spec.StorageSize != db.Status.LastStorageSize {
+		pvcName := db.Name + "-pvc"
+		pvc := &corev1.PersistentVolumeClaim{}
+		err := r.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: db.Namespace}, pvc)
+		if err != nil {
+			l.Error(err, "Failed to get PVC", "PVC.Name", pvcName)
+			return ctrl.Result{}, err
+		}
+
+		// Update the PVC storage size
+		newStorageSize := db.Spec.StorageSize
+		pvc.Spec.Resources.Requests[corev1.ResourceStorage] = *resource.NewQuantity(int64(newStorageSize), resource.BinarySI)
+
+		if err := r.Update(ctx, pvc); err != nil {
+			l.Error(err, "Failed to update PVC", "PVC.Name", pvcName)
+			return ctrl.Result{}, err
+		}
+
+		// Update the last storage size in the status
+		db.Status.LastStorageSize = db.Spec.StorageSize
+		if err := r.Status().Update(ctx, db); err != nil {
+			l.Error(err, "Failed to update DB status")
+			return ctrl.Result{}, err
+		}
+	}
+>>>>>>> 7d7c979cf948eb206811d8d4e3275461479ae9fd
 
 	// Define secret
 	secret := &corev1.Secret{}
