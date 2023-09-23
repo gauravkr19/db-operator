@@ -1,0 +1,27 @@
+# permissions for end users to view pvcextensions.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: pvcextension-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: db-operator
+    app.kubernetes.io/part-of: db-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: pvcextension-viewer-role
+rules:
+- apiGroups:
+  - gauravkr19.dev
+  resources:
+  - pvcextensions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gauravkr19.dev
+  resources:
+  - pvcextensions/status
+  verbs:
+  - get

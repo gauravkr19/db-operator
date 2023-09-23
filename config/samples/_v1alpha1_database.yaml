@@ -10,5 +10,5 @@ metadata:
   name: database-sample
 spec:
   replicas: 1
-  size: 1
-  image: docker.io/gauravkr19/postgres:15-alpine
+  image: docker.io/gauravkr19/postgres-data
+  storageSize: '1Gi'

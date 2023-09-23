@@ -18,6 +18,30 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -51,6 +75,32 @@ rules:
   - gauravkr19.dev
   resources:
   - databases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gauravkr19.dev
+  resources:
+  - pvcextensions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gauravkr19.dev
+  resources:
+  - pvcextensions/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gauravkr19.dev
+  resources:
+  - pvcextensions/status
   verbs:
   - get
   - patch

@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.1
   creationTimestamp: null
-  name: databases.gauravkr19.dev
+  name: pvcextensions.gauravkr19.dev
 spec:
   group: gauravkr19.dev
   names:
-    kind: Database
-    listKind: DatabaseList
-    plural: databases
-    singular: database
+    kind: PVCExtension
+    listKind: PVCExtensionList
+    plural: pvcextensions
+    singular: pvcextension
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Database is the Schema for the databases API
+        description: PVCExtension is the Schema for the pvcextensions API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,22 +33,21 @@ spec:
           metadata:
             type: object
           spec:
-            description: DatabaseSpec defines the desired state of Database
+            description: PVCExtensionSpec defines the desired state of PVCExtension
             properties:
-              image:
-                type: string
-              replicas:
-                format: int32
-                type: integer
-              storageSize:
+              size:
                 anyOf:
                 - type: integer
                 - type: string
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file'
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
+            required:
+            - size
             type: object
           status:
-            description: DatabaseStatus defines the observed state of Database
+            description: PVCExtensionStatus defines the observed state of PVCExtension
             type: object
         type: object
     served: true

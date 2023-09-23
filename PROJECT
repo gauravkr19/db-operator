@@ -19,4 +19,12 @@ resources:
   kind: Database
   path: github.com/gauravkr19/db-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: gauravkr19.dev
+  kind: PVCExtension
+  path: github.com/gauravkr19/db-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
