@@ -34,7 +34,7 @@ import (
 	// "github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	// "k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	// "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -107,7 +107,8 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: *db.Spec.Size,
+					// corev1.ResourceStorage: *db.Spec.StorageSize,
+					corev1.ResourceStorage: *resource.NewQuantity(int64(db.Spec.StorageSize), resource.BinarySI),
 				},
 			},
 		},
@@ -126,6 +127,33 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	} else if err != nil {
 		l.Error(err, "Failed to check PVC", "PVC.Name", pvc.Name)
 		return ctrl.Result{}, err
+	}
+
+	// Extend PVC storage size if needed
+	if db.Spec.StorageSize != db.Status.LastStorageSize {
+		pvcName := db.Name + "-pvc"
+		pvc := &corev1.PersistentVolumeClaim{}
+		err := r.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: db.Namespace}, pvc)
+		if err != nil {
+			l.Error(err, "Failed to get PVC", "PVC.Name", pvcName)
+			return ctrl.Result{}, err
+		}
+
+		// Update the PVC storage size
+		newStorageSize := db.Spec.StorageSize
+		pvc.Spec.Resources.Requests[corev1.ResourceStorage] = *resource.NewQuantity(int64(newStorageSize), resource.BinarySI)
+
+		if err := r.Update(ctx, pvc); err != nil {
+			l.Error(err, "Failed to update PVC", "PVC.Name", pvcName)
+			return ctrl.Result{}, err
+		}
+
+		// Update the last storage size in the status
+		db.Status.LastStorageSize = db.Spec.StorageSize
+		if err := r.Status().Update(ctx, db); err != nil {
+			l.Error(err, "Failed to update DB status")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Define secret

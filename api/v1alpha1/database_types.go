@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
+	// "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,16 +30,17 @@ type DatabaseSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Replicas int32              `json:"replicas,omitempty"`
-	Size     *resource.Quantity `json:"size,omitempty"`
-	Image    string             `json:"image,omitempty"`
+	Replicas    int32  `json:"replicas,omitempty"`
+	StorageSize int32  `json:"size,omitempty"`
+	Image       string `json:"image,omitempty"`
 }
 
 // DatabaseStatus defines the observed state of Database
 type DatabaseStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	PVCName string `json:"pvcName,omitempty"`
+	PVCName         string `json:"pvcName,omitempty"`
+	LastStorageSize int32  `json:"size,omitempty"`
 }
 
 //+kubebuilder:object:root=true
